@@ -1,0 +1,112 @@
+import java.awt.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+
+public class OtoDom {
+
+    interface Ankieta {
+        void zrob() throws Exception;
+    }
+
+    static ChromeDriver dr;
+
+    public static void otworzStrone(String strona) {
+        ChromeOptions chromeOptions = new ChromeOptions();
+        List optionsList = new ArrayList();
+        optionsList.add("--window-size=1150,1500");
+        chromeOptions.addArguments(optionsList);
+
+        dr = new ChromeDriver(chromeOptions);
+        dr.get(strona);
+        dr.manage().timeouts().implicitlyWait(20, TimeUnit.SECONDS);
+        dr.findElementByCssSelector("body > main > section.section-main-search > div > form > div > div.col-md-10.col-fields > div > div.col-location > div > div.location-city.filter-item > span > span.selection > span").click();
+        dr.findElementByCssSelector("body > span > span > span.select2-search.select2-search--dropdown > input").sendKeys("Warszawa, mazowieckie");
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+        }
+        dr.findElementByCssSelector("body > main > section.section-main-search > div > form > div > div.col-xs-12.col-md-2.col-action > button").click();
+        dr.findElementByCssSelector("#paramsList > div.col-md-2 > a").click();
+        dr.findElementByCssSelector("#searchAdvanced > div > div.inner.inner-body > div > div > div:nth-child(1) > div:nth-child(1) > div.df_line.df_line_additional > div > label").click();
+        dr.findElementByCssSelector("#mainTopSearch > div.row > div.col-sm-2.col-action > button").click();
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+        }
+        dr.findElementByCssSelector("#paramsList > div.col-md-2 > a").click();
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+        }
+    }
+    public static void sprobujKilkaRazy(Ankieta ankieta){
+        int proba = 0;
+        boolean sukces = false;
+        Exception ostatniWyjatek = null;
+        while (proba++ < 5 && !sukces) {
+            try {
+                ankieta.zrob();
+                sukces = true;
+            }catch (Exception e){
+                ostatniWyjatek = e;
+                dr.quit();
+                try {
+                    Thread.sleep(300);
+                } catch (InterruptedException e1) {}
+            }
+        }
+    }
+
+    public static void main(String[] args) throws AWTException {
+        String strona = "http://otodom.pl";
+        Calendar dzis = Calendar.getInstance();
+        DateFormat dateFormat = new SimpleDateFormat("dd");
+        String dzisiaj = dateFormat.format(dzis.getTime());
+        //otworzStrone(strona);
+        sprobujKilkaRazy(() -> {
+            otworzStrone(strona);
+        });
+
+        List<WebElement> ogloszenia = dr.findElementsByCssSelector("#body-container > div > div > div:nth-child(2) > div > article");
+        int i = 1;
+        for (WebElement e : ogloszenia) {
+            //WebElement e = ogloszenia.get(10);
+
+            System.out.print(e.findElement(By.cssSelector("h3 span.offer-item-title")).getText());
+            String url = e.findElement(By.cssSelector("header > h3 > a")).getAttribute("href");
+            System.out.println(" href: " + url);
+            ((JavascriptExecutor) dr).executeScript("window.open('" + url + "', '_blank');");
+            try {
+                Thread.sleep(300);
+            } catch (Exception ue) {
+            }
+
+            ArrayList<String> tabs2 = new ArrayList<String>(dr.getWindowHandles());
+            //dr.close(); //zamkniecie biezacej (pierwszej) zakladki. (nie trzeba zamykac)
+            dr.switchTo().window(tabs2.get(i++)); //przelaczenie na druga, nowo otwarta, zakladke
+
+            //tu operacje na drugiej zakladce
+
+            String dataDodania = dr.findElementByCssSelector("body > div.article-offer > section.section-offer-text.updated > div > div > div > div > div.right > p:nth-child(1)").getText();
+            dataDodania = dataDodania.substring(14,16);
+            System.out.println(dataDodania);
+
+            if (!dataDodania.equals(dzisiaj)) {
+                dr.close();
+                i--;
+            }
+
+            dr.switchTo().window(tabs2.get(0)); //tak mozna powrocic do pierwszej zakladki, jezeli nie zostala zamknieta dr.close()
+
+        }
+    }
+}
