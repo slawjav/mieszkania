@@ -39,7 +39,7 @@ public class OtoDom {
         }
         dr.executeScript("scroll(0,6000);");
         try {
-            Thread.sleep(2000);
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
         }
         dr.findElementByCssSelector(("#body-container > div > div > div:nth-child(2) > div > div.after-offers.clearfix > div > ul > li:nth-child(2) > a")).click();
