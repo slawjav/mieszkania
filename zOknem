@@ -1,0 +1,131 @@
+package com.mycompany.mieszkania;
+
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import javax.swing.SwingUtilities;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+
+public class OtoDom {
+
+    interface Ankieta {
+
+        void zrob() throws Exception;
+    }
+
+    static ChromeDriver dr;
+
+    public static void czekaj(int ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+        }
+    }
+
+    public static void otworzStrone() {
+        ChromeOptions chromeOptions = new ChromeOptions();
+        List optionsList = new ArrayList();
+        optionsList.add("--window-size=1150,1500");
+        chromeOptions.addArguments(optionsList);
+
+        dr = new ChromeDriver(chromeOptions);
+        dr.get("http://otodom.pl");
+        dr.manage().timeouts().implicitlyWait(20, TimeUnit.SECONDS);
+        dr.findElementByCssSelector("body > main > section.section-main-search > div > form > div > div.col-md-10.col-fields > div > div.col-location > div > div.location-city.filter-item > span > span.selection > span").click();
+        dr.findElementByCssSelector("body > span > span > span.select2-search.select2-search--dropdown > input").sendKeys("Warszawa, mazowieckie");
+        czekaj(500);
+        dr.findElementByCssSelector("body > main > section.section-main-search > div > form > div > div.col-xs-12.col-md-2.col-action > button").click();
+        czekaj(500);
+        dr.executeScript("scroll(0,7000);");
+        czekaj(1000);
+        dr.findElementByCssSelector(("#body-container > div > div > div:nth-child(2) > div > div.after-offers.clearfix > div > ul > li:nth-child(2) > a")).click();
+        dr.findElementByCssSelector("#paramsList > div.col-md-2 > a").click();
+        dr.findElementByCssSelector("#searchAdvanced > div > div.inner.inner-body > div > div > div:nth-child(1) > div:nth-child(1) > div.df_line.df_line_additional > div > label").click();
+        dr.findElementByCssSelector("#mainTopSearch > div.row > div.col-sm-2.col-action > button").click();
+        czekaj(500);
+        dr.findElementByCssSelector("#paramsList > div.col-md-2 > a").click();
+        czekaj(500);
+    }
+
+    public static void sprobujKilkaRazy(Ankieta ankieta) {
+        int proba = 0;
+        boolean sukces = false;
+        Exception ostatniWyjatek = null;
+        while (proba++ < 5 && !sukces) {
+            try {
+                ankieta.zrob();
+                sukces = true;
+            } catch (Exception e) {
+                ostatniWyjatek = e;
+                dr.findElementByCssSelector("body > div.bootbox.modal.fade.surveyMonkeyGTMPopup.in > div > div > div > button").click();
+                dr.quit();
+                try {
+                    Thread.sleep(300);
+                } catch (InterruptedException e1) {
+                }
+            }
+        }
+    }
+
+    public static List<String> listaURL(int ileStron) {
+
+        List<String> href = new ArrayList<>();
+        for (int j = 0; j < ileStron; j++) {
+            List<WebElement> ogloszenia = dr.findElementsByCssSelector("#body-container > div > div > div:nth-child(2) > div > article");
+            System.out.println("Lista ogłoszeń zrobiona");
+            for (WebElement e : ogloszenia) {
+                href.add(e.findElement(By.cssSelector("header > h3 > a")).getAttribute("href"));
+            }
+            System.out.println("wczytane");
+            dr.executeScript("scroll(0,17700);");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+            }
+            dr.findElementByCssSelector("#pagerForm > ul > li.pager-next > a").click();
+        }
+        return href;
+    }
+
+    public static void zakladkiZ_Ogloszeniami(List<String> url, int dzisiaj, int wczoraj, int przedwczoraj) {
+        //Calendar dzis = Calendar.getInstance();
+        //int dzisiaj = dzis.get(Calendar.DATE);
+        //int wczoraj = dzis.get(Calendar.DATE) - 1;
+        int nrZakladki = 1;
+        for (int i = 0; i < url.size(); i++) {
+            ((JavascriptExecutor) dr).executeScript("window.open('" + url.get(i) + "', '_blank');");
+            System.out.println("ogłoszenie nr: " + i);
+            czekaj(300);
+            ArrayList<String> tabs2 = new ArrayList<String>(dr.getWindowHandles());
+            dr.switchTo().window((tabs2.get(nrZakladki++)));
+            String dataDodania = dr.findElementByCssSelector("body > div.article-offer > section.section-offer-text.updated > div > div > div > div > div.right > p:nth-child(1)").getText();
+            dataDodania = dataDodania.substring(14, 16);
+            if (!(dataDodania.equals(String.valueOf(dzisiaj)) || dataDodania.equals(String.valueOf(wczoraj)) || dataDodania.equals(String.valueOf(przedwczoraj)))) {
+                dr.close();
+                nrZakladki--;
+            }
+            dr.switchTo().window(tabs2.get(nrZakladki - 1));
+            final int fikumiku = i;
+            SwingUtilities.invokeLater(() -> {
+                Okno.zrobione.setText("Ogłoszenie " + (fikumiku + 1) + " z " + url.size());
+            });
+        }
+    }
+
+//    public static void main(String[] args) throws AWTException {
+//        String strona = "http://otodom.pl";
+//        sprobujKilkaRazy(() -> {
+//            otworzStrone();
+//        });
+//        List<String> url = listaURL(2);
+//        //for (int i = 0; i < url.size(); i++) System.out.println("link nr:" + i + " " + url.get(i));
+//        zakladkiZ_Ogloszeniami(url);
+//
+//    }
+}
